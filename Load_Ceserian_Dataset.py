@@ -2,6 +2,7 @@ import arff
 import numpy as np
 import pandas as pd
 
+
 def readCeserianFile(filePath):
     # read arff data
     with open(filePath) as f:
@@ -16,7 +17,7 @@ def readCeserianFile(filePath):
 
     return pd.DataFrame(arffData, columns=arffAttributes) 
 
+
 if __name__ == "__main__":
 
     readCeserianFile("caesarian.csv.arff")
-
