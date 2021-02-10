@@ -22,7 +22,7 @@ def read_data_return_frame(filename):
     return x, y, class_names, feature_names
 
 
-def train_test_classifier(x, y, test_size=0.25, criterion='gini', max_depth=None):
+def train_test_classifier(x, y, test_size=0.25):
 
     x_train, x_test, y_train, y_test = \
         model_selection.train_test_split(x, y, test_size=test_size, stratify=y, random_state=42)
@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     x, y, class_names, feature_names = read_data_return_frame("caesarian.csv.arff")
 
-    x_train, x_test, y_train, y_test, classifier = train_test_classifier(x, y, test_size=0.25, criterion='gini')
+    x_train, x_test, y_train, y_test, classifier = train_test_classifier(x, y, test_size=0.25)
 
     print("Accuracy Report for Training")
     y_pred_train = prediction(classifier, x_train)
