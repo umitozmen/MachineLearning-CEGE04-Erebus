@@ -1,23 +1,54 @@
-from Load_Ceserian_Dataset import readCeserianFile
+from Load_Dataset import readDatabaseFile
 import numpy as np    
 import matplotlib.pyplot as plt
 import pandas as pd
 import sklearn
 from sklearn import preprocessing
 from sklearn import model_selection
+from sklearn.compose import ColumnTransformer
 from sklearn import tree
 import graphviz
 
 def read_data_return_frame(filename):
     
-    dataframe = readCeserianFile(filename)
+    df = readDatabaseFile(filename)
+    
+    #drop the columns that asuuming has less value for prediction
+    df = df.drop(df.columns[[0,1,2,3,8,11,12,14]], axis=1)
 
-    feature_names = list(dataframe.columns)[:-1]
+    #get average of product realted and duration and drop product related visited page amount
+    df['ProductRelatedAve'] = df.apply(lambda row: row.ProductRelated_Duration / row.ProductRelated if row.ProductRelated else 0, axis=1)
+    new_coloumn_order = list(df.columns)
+    new_coloumn_order.insert(2,'ProductRelatedAve')
+    new_coloumn_order.pop()
+    df = df.reindex(columns = new_coloumn_order)
+    df = df.drop(df.columns[[0]], axis=1)
+
+    return df
+
+def preprocess_df(df):   
+    
+
+    #pre_processing month column into categorical attribute with one hot encoding
+    # ohe = preprocessing.OneHotEncoder()
+    # columnTransformer = ColumnTransformer([('encoder', ohe, [5,6])], remainder='passthrough')
+    # df = np.array(columnTransformer.fit_transform(df), dtype = np.str)
+
+    df['Month'] = pd.factorize(df.Month)[0]
+    df['Region']  =  pd.factorize(df.Region)[0] 
+    df['VisitorType'] = pd.factorize(df.VisitorType)[0]  
+    df['Weekend'] = pd.factorize(df.Weekend)[0]  
+
     #return all column except last one for arttributes
-    x = dataframe.iloc[:,0: -1:1].values
-    #return last column for label ceserian yes(1) / no(0)
-    y = dataframe.iloc[:, -1]
+    x = df.iloc[:,0: -1:1].values
+
+    #return last column for label revenue true(1) / false(0)
+    y = df.iloc[:, -1]
     y,class_names = pd.factorize(y)
+    class_names = [str(x) for x in class_names]
+    #get feature names
+    feature_names = list(df.columns)[:-1]
+
     return x, y, class_names, feature_names
 
 def train_test_classifier(x, y, test_size = 0.25, criterion='gini', max_depth =None):
@@ -56,7 +87,7 @@ def draw_tree(class_names, feature_names, classifier):
 def desicion_boundary(axis_0, axis_1, xs, ys):
 
     # training a decision tree only on two features
-    xs = xs.astype(np.int)
+    xs = xs[:, [axis_0, axis_1]].astype(np.int)
     ys = ys.astype(np.int)
 
     # Feature Scaling
@@ -91,16 +122,22 @@ def desicion_boundary(axis_0, axis_1, xs, ys):
 
 if __name__ == "__main__":
 
-    x, y, class_names, feature_names = read_data_return_frame("caesarian.csv.arff")
+    data_frame_os = read_data_return_frame("online_shoppers_intention.csv")
+    
+    x, y, class_names, feature_names = preprocess_df(data_frame_os)
+
+    print(class_names)
+    #print(feature_names)
+    #print(x[1:10,:])
 
     x_train, x_test, y_train, y_test, classifier = train_test_classifier(x, y, test_size = 0.25, criterion='gini', max_depth =5)
 
-    #y_pred_train = prediction(classifier, x_train)
-    #accuracy_cm_report(y_train, y_pred_train, class_names = class_names)
+    y_pred_train = prediction(classifier, x_train)
+    accuracy_cm_report(y_train, y_pred_train, class_names = class_names)
 
     #y_pred_test = prediction(classifier, x_test)
     #accuracy_cm_report(y_test, y_pred_test, class_names = class_names)
 
     #draw_tree(class_names, feature_names, classifier)
 
-    desicion_boundary(0,2,x_train,y_train)
+    #desicion_boundary(0,1,x_train,y_train)
