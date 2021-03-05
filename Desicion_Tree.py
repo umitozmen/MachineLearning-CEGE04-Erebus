@@ -7,6 +7,7 @@ from sklearn import preprocessing
 from sklearn import model_selection
 from sklearn.compose import ColumnTransformer
 from sklearn import tree
+import seaborn as sns
 import graphviz
 
 def read_data_return_frame(filename):
@@ -68,15 +69,26 @@ def prediction(classifier, x):
 
     return y_pred
 
-def accuracy_cm_report(y, y_pred, class_names = []):
+def accuracy_cm_report(y, y_pred, class_names = [], dom = 'Train', brk = True):
 
-    accuracy = sklearn.metrics.accuracy_score(y, y_pred)
-    print("Accuracy: {:.2f}".format(accuracy))
+    print(f'{dom} score {sklearn.metrics.accuracy_score(y, y_pred)}')
 
-    cm=sklearn.metrics.confusion_matrix(y,y_pred)
-    print('Confusion Matrix: \n', cm)
-    print(sklearn.metrics.classification_report(y, y_pred, target_names=class_names))
+    if brk:
+        plot_confusionmatrix(y_pred, y, class_names, dom=dom)
 
+    report = sklearn.metrics.classification_report(y, y_pred, target_names=class_names, output_dict=True)
+    cls_report_df = pd.DataFrame(report)
+
+    print(cls_report_df.iloc[0:2, 0:2])
+
+def plot_confusionmatrix(y_pred, y, classes, dom):
+
+    print(f'{dom} Confusion matrix')
+    cf = sklearn.metrics.confusion_matrix(y_pred,y)
+    sns.heatmap(cf,annot=True,yticklabels=classes
+               ,xticklabels=classes,cmap='Blues', fmt='g')
+    plt.tight_layout()
+    plt.show()
 
 def draw_tree(class_names, feature_names, classifier):
 
@@ -85,59 +97,22 @@ def draw_tree(class_names, feature_names, classifier):
     graph.format = 'png'
     graph.render('dtree_render',view=True)
 
-def desicion_boundary(axis_0, axis_1, xs, ys,feature_names,class_names):
-
-    # training a decision tree only on two features
-    xs = xs.astype(np.float)
-    ys = ys.astype(np.float)
-
-    # Feature Scaling
-    from sklearn.preprocessing import StandardScaler
-    sc = StandardScaler()
-    xs[:, [axis_0]] = sc.fit_transform(xs[:, [axis_0]])
-
-    tree_clf = tree.DecisionTreeClassifier(criterion='gini', max_depth=None)
-    tree_clf.fit(xs[:, [axis_0, axis_1]], ys)
-
-    # create a grid of points to plot the countour
-    x_min, x_max = xs[:, axis_0].min() - 1, xs[:, axis_0].max() + 1
-    y_min, y_max = xs[:, axis_1].min() - 0.01, xs[:, axis_1].max() + 0.01
-    xx, yy = np.meshgrid(np.arange(x_min, x_max, 0.01),
-                        np.arange(y_min, y_max, 0.001))
-    
-    # predict the outcome for the grid of points
-    zz = tree_clf.predict(np.c_[xx.ravel(), yy.ravel()])
-    zz = zz.reshape(xx.shape)
-    cs = plt.contourf(xx, yy, zz)
-
-    # # define axis
-    plt.xlabel(feature_names[axis_0])
-    plt.ylabel(feature_names[axis_1])
-
-    # plot the dataset
-    for i, color, marker in zip(range(2), 'rb', 'os'):
-        idx = np.where(ys == i)
-        plt.scatter(xs[idx, axis_0], xs[idx, axis_1], c=color, marker=marker, label=class_names[i],
-                    cmap=plt.cm.RdYlBu, edgecolor=None, s=2)
-
-    plt.xlim(-1,3)
-    plt.legend()
-    plt.show()
-
 if __name__ == "__main__":
 
     data_frame_os = read_data_return_frame("online_shoppers_intention.csv")
     
     x, y, class_names, feature_names = preprocess_df(data_frame_os)
 
-    x_train, x_test, y_train, y_test, classifier = train_test_classifier(x, y, test_size = 0.25, criterion='gini', max_depth =5)
+    x_train, x_test, y_train, y_test, classifier = train_test_classifier(x, y, test_size = 0.25, criterion='gini', max_depth =None)
 
-    #y_pred_train = prediction(classifier, x_train)
-    #accuracy_cm_report(y_train, y_pred_train, class_names = class_names)
+    print(class_names)
+    print(feature_names)
+    y_pred_train = prediction(classifier, x_train)
+    accuracy_cm_report(y_train, y_pred_train, class_names = class_names)
 
     #y_pred_test = prediction(classifier, x_test)
     #accuracy_cm_report(y_test, y_pred_test, class_names = class_names)
 
     #draw_tree(class_names, feature_names, classifier)
 
-    desicion_boundary(0,2,x_train,y_train,feature_names,class_names)
+
