@@ -22,44 +22,45 @@ def read_data_return_frame(filename):
     return x, y, class_names, feature_names
 
 
+def train_test_classifier(x, y, test_size=0.25):
+
+    x_train, x_test, y_train, y_test = \
+        model_selection.train_test_split(x, y, test_size=test_size, stratify=y, random_state=42)
+
+    #   classifier = KNeighborsClassifier(n_neighbors=5, metric='euclidean')
+
+    param_grid = [{
+        'weights': ["uniform", "distance"],
+        'n_neighbors': range(1, 11),
+        'metric': ['euclidean', 'manhattan', 'cosine']}]
+
+    classifier = KNeighborsClassifier(metric="manhattan", n_neighbors=9, weights="distance")
+
+    # classifier = KNeighborsClassifier()
+    # grid_search = GridSearchCV(classifier, param_grid, cv=5, verbose=2)
+    # grid_search.fit(x_train, y_train)
+    #
+    # classifier = grid_search.best_estimator_
+    print(classifier)
+    classifier.fit(x_train, y_train)
+    return x_train, x_test, y_train, y_test, classifier
+
+
 # def train_test_classifier(x, y, test_size=0.25):
 #
 #     x_train, x_test, y_train, y_test = \
 #         model_selection.train_test_split(x, y, test_size=test_size, stratify=y, random_state=42)
 #
-#     #   classifier = KNeighborsClassifier(n_neighbors=5, metric='euclidean')
-#     param_grid = [{
-#         'weights': ["uniform", "distance"],
-#         'n_neighbors': range(1, 11),
-#         'metric': ['euclidean', 'manhattan', 'cosine']}]
+#     parameters = {'kernel': ('linear', 'rbf'), 'C': [1, 10]}
+#     svc = SVC()
 #
-#     # classifier = KNeighborsClassifier(metric="manhattan", n_neighbors=9, weights="distance")
-#
-#     classifier = KNeighborsClassifier()
-#     grid_search = GridSearchCV(classifier, param_grid, cv=5, verbose=2)
+#     grid_search = GridSearchCV(svc, parameters)
 #     grid_search.fit(x_train, y_train)
 #
 #     classifier = grid_search.best_estimator_
 #     print(classifier)
 #     classifier.fit(x_train, y_train)
 #     return x_train, x_test, y_train, y_test, classifier
-
-
-def train_test_classifier(x, y, test_size=0.25):
-
-    x_train, x_test, y_train, y_test = \
-        model_selection.train_test_split(x, y, test_size=test_size, stratify=y, random_state=42)
-
-    parameters = {'kernel': ('linear', 'rbf'), 'C': [1, 10]}
-    svc = SVC()
-
-    grid_search= GridSearchCV(svc, parameters)
-    grid_search.fit(x_train, y_train)
-
-    classifier = grid_search.best_estimator_
-    print(classifier)
-    classifier.fit(x_train, y_train)
-    return x_train, x_test, y_train, y_test, classifier
 
 
 def prediction(classifier, x):
@@ -87,8 +88,8 @@ if __name__ == "__main__":
 
     print("Accuracy Report for Training")
     y_pred_train = prediction(classifier, x_train)
-    accuracy_cm_report(y_train, y_pred_train, class_names=class_names)
+    # accuracy_cm_report(y_train, y_pred_train, class_names=class_names)
 
-    print("Accuracy Report for Testing")
-    y_pred_test = prediction(classifier, x_test)
-    accuracy_cm_report(y_test, y_pred_test, class_names=class_names)
+    # print("Accuracy Report for Testing")
+    # y_pred_test = prediction(classifier, x_test)
+    # accuracy_cm_report(y_test, y_pred_test, class_names=class_names)
