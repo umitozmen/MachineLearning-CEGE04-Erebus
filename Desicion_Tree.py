@@ -55,7 +55,7 @@ def preprocess_df(df):
 
 def train_test_classifier(x, y, test_size = 0.25, criterion='gini', max_depth =None):
 
-    x_train, x_test, y_train, y_test = model_selection.train_test_split(x, y, test_size = test_size, stratify=y, random_state = 42)
+    x_train, x_test, y_train, y_test = model_selection.train_test_split(x, y, test_size = test_size, random_state = 42)
 
     classifier = tree.DecisionTreeClassifier(criterion=criterion, random_state=42, max_depth= max_depth)
     classifier.fit(x_train, y_train)
@@ -79,7 +79,7 @@ def accuracy_cm_report(y, y_pred, class_names = [], dom = 'Train', brk = True):
     report = sklearn.metrics.classification_report(y, y_pred, target_names=class_names, output_dict=True)
     cls_report_df = pd.DataFrame(report)
 
-    print(cls_report_df.iloc[0:2, 0:2])
+    print(cls_report_df.iloc[0:3, 0:2])
 
 def plot_confusionmatrix(y_pred, y, classes, dom):
 
@@ -103,16 +103,21 @@ if __name__ == "__main__":
     
     x, y, class_names, feature_names = preprocess_df(data_frame_os)
 
+    #Classifier in this version is a starting point will not be used later in the code
     x_train, x_test, y_train, y_test, classifier = train_test_classifier(x, y, test_size = 0.25, criterion='gini', max_depth =None)
 
-    print(class_names)
-    print(feature_names)
-    y_pred_train = prediction(classifier, x_train)
-    accuracy_cm_report(y_train, y_pred_train, class_names = class_names)
+    from sklearn import tree
+    from sklearn.model_selection import GridSearchCV
 
-    #y_pred_test = prediction(classifier, x_test)
-    #accuracy_cm_report(y_test, y_pred_test, class_names = class_names)
+    params = {'max_depth': [5,6],
+            'min_samples_leaf': [5,6,7,8],
+            'min_samples_split': [5,6,7,8,9]
+            }
 
-    #draw_tree(class_names, feature_names, classifier)
+    clf = tree.DecisionTreeClassifier(criterion='gini')
+    gcv = GridSearchCV(estimator=clf,param_grid=params, scoring='f1')
+    gcv.fit(x_train,y_train)
+    gcv_best = gcv.best_estimator_
+    draw_tree(class_names,feature_names, gcv_best)
 
 
