@@ -9,7 +9,8 @@ from sklearn.neighbors import KNeighborsClassifier
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.utils import resample
-
+import math
+from sklearn.svm import SVC
 
 def read_data_return_frame(filename):
     df = readDatabaseFile(filename)
@@ -52,63 +53,105 @@ def preprocess_df(df):
     # get feature names
     feature_names = list(df.columns)[:-1]
 
+    # normalized_df.to_csv(r'C:\Users\prisc\Documents\\export_dataframe.csv', index=False, header=True)
+
     return x, y, class_names, feature_names
+
+
+def preprocess_df_cat(data_frame_os_cat):
+    # Separate input features and target
+    y = data_frame_os_cat.Revenue
+    y, class_names = pd.factorize(y)
+    y = pd.DataFrame({'Revenue': y})
+    x = data_frame_os_cat.drop('Revenue', axis=1)
+
+    return x, y
 
 
 def train_test(x, y, test_size=0.25):
 
+    # setting up testing and training sets
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, stratify=y, random_state=42)
+
     return x_train, x_test, y_train, y_test
 
 
-def resample_data(x_train, y_train):
+def upsample_minority(x, y):
     # concatenate our training data back together
+    X = pd.concat([x, y], axis=1)
+
+    # separate minority and majority classes
+    not_true = X[X.Revenue == 0]
+    true = X[X.Revenue == 1]
+
+    # upsample minority
+    true_upsampled = resample(true,
+                              replace=True,  # sample with replacement
+                              n_samples=len(not_true),  # match number in majority class
+                              random_state=43)  # reproducible results
+
+    # combine majority and upsampled minority
+    upsampled = pd.concat([not_true, true_upsampled])
+
+    # check new class counts
+    upsampled.Revenue.value_counts()
+
+    y = upsampled.Revenue
+    x = upsampled.drop('Revenue', axis=1)
+
+    return x, y
 
 
-    for i in range(len(x_train)):
-        # separate minority and majority classes
-        if y_train[i] == 0:
-            not_revenue.append(X_Y[i])
-        else:
-            revenue.append(X_Y[i])
+def upsample_minority(x, y):
+    # concatenate our training data back together
+    X = pd.concat([x, y], axis=1)
 
-    # up-sample minority
-    revenue_upsampled = resample(revenue,
-                                 replace=True,  # sample with replacement
-                                 n_samples=len(not_revenue),  # match number in majority class
-                                 random_state=42)  # reproducible results
+    # separate minority and majority classes
+    not_true = X[X.Revenue == 0]
+    true = X[X.Revenue == 1]
+
+    # upsample minority
+    true_upsampled = resample(true,
+                              replace=True,  # sample with replacement
+                              n_samples=len(not_true),  # match number in majority class
+                              random_state=43)  # reproducible results
+
+    # combine majority and upsampled minority
+    upsampled = pd.concat([not_true, true_upsampled])
+
+    # check new class counts
+    upsampled.Revenue.value_counts()
+
+    y = upsampled.Revenue
+    x = upsampled.drop('Revenue', axis=1)
+
+    return x, y
 
 
-    # # combine majority and upsampled minority
-    # upsampled = pd.concat([not_revenue, revenue_upsampled])
-    #
-    # # check new class counts
-    # print("check new class counts")
-    # print(upsampled.Class.value_counts())
-    #
-    # y_resample = upsampled.Class
-    # x_resample = upsampled.drop('Class', axis=1)
-    #
-    # return x_resample, y_resample
+def src_category(x_train, y_train, k):
 
-
-def src_category(x_train, y_train):
-    classifier = KNeighborsClassifier(n_neighbors=5, metric='euclidean')
+    # classifier = KNeighborsClassifier(n_neighbors=1, metric='cosine')
+    k_min = int(k)-5
+    k_max = int(k)+5
 
     # param_grid = [{
     #     'weights': ["uniform", "distance"],
-    #     'n_neighbors': range(1, 5),
-    #     'metric': ['cosine']}]
-    # # 'metric': ['euclidean', 'manhattan', 'cosine']}]
-
-    # classifier = KNeighborsClassifier(metric="manhattan", n_neighbors=9, weights="distance")
+    #     'n_neighbors': range(k_min,k_max),
+    #     # 'n_neighbors': [1, 6, 7, 8, 9, 10, 15, 16],
+    #     'metric': ['euclidean', 'manhattan', 'cosine']}]
 
     # classifier = KNeighborsClassifier()
-    # grid_search = GridSearchCV(classifier, param_grid, cv=5, verbose=2)
+    # grid_search = GridSearchCV(classifier, param_grid, cv=5, verbose=0, scoring='f1')
     # grid_search.fit(x_train, y_train)
-    #
-    # classifier = grid_search.best_estimator_
+
+    parameters = {'kernel': ('linear', 'rbf'), 'C': range(96, 97)}
+    svc = SVC()
+    grid_search = GridSearchCV(svc, parameters, cv=5, verbose=0, scoring='f1')
+    grid_search.fit(x_train, y_train)
+
+    classifier = grid_search.best_estimator_
     print(classifier)
+    print(grid_search.best_params_)
 
     classifier.fit(x_train, y_train)
     return classifier
@@ -141,20 +184,47 @@ def plot_confusionmatrix(y_pred, y, classes, dom):
     plt.show()
 
 
+def convert_num_to_cat(df):
+    # SpecialDay column is actually split into 6 categories (0,0.2,0.4,0.6,0.8,1), so we just
+    # multiply to get it to become an integer
+    df['SpecialDay'] = 5 * df['SpecialDay']
+    df['SpecialDay'] = df['SpecialDay'].astype('int64')
+
+    # Product Related Duration, Product Related Average and Exit Rates binned into 5
+    # categories (0-4) based on quantiles
+    df['ProductRelated_Duration'] = pd.qcut(df['ProductRelated_Duration'], 5, labels=[0, 1, 2, 3, 4])
+    df['ProductRelatedAve'] = pd.qcut(df['ProductRelatedAve'], 5, labels=[0, 1, 2, 3, 4])
+    df['ExitRates'] = pd.qcut(df['ExitRates'], 5, labels=[0, 1, 2, 3, 4])
+
+    # BounceRates binned into 3 categories based on quantiles (0-2) as there are
+    # duplicate bins (of 0s) due to too many occurences
+    df['BounceRates'] = pd.qcut(df['BounceRates'], 5, duplicates='drop', labels=[0, 1, 2])
+    return df
+
+
 if __name__ == "__main__":
 
     data_frame_os = read_data_return_frame("online_shoppers_intention.csv")
-
     x, y, class_names, feature_names = preprocess_df(data_frame_os)
     x_train, x_test, y_train, y_test = train_test(x, y, test_size=0.25)
 
-    resample_data(x_train, y_train)
-    # classifier = src_category(x_train, y_train)
+    data_frame_os_cat = data_frame_os.copy()
+    data_frame_os_cat = convert_num_to_cat(data_frame_os_cat)
+
+    x_cat, y_cat = preprocess_df_cat(data_frame_os_cat)
+
+    # x_train, x_test, y_train, y_test = train_test(x_cat, y_cat, test_size=0.25)
+    # x_train, y_train = upsample_minority(x_train, y_train)
+
+    # k = (math.sqrt(y_train.count()))
+    k = (math.sqrt(len(y_train)))
+
+    classifier = src_category(x_train, y_train, k)
 
     # print("Accuracy Report for Training")
     # y_pred_train = prediction(classifier, x_train)
     # accuracy_cm_report(y_train, y_pred_train, class_names=class_names)
-
+    #
     # print("Accuracy Report for Testing")
     # y_pred_test = prediction(classifier, x_test)
     # accuracy_cm_report(y_test, y_pred_test, class_names=class_names)
