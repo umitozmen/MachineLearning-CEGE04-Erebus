@@ -102,7 +102,7 @@ def upsample_minority(x, y):
     return x, y
 
 
-def upsample_minority(x, y):
+def reshape(x, y):
     # concatenate our training data back together
     X = pd.concat([x, y], axis=1)
 
@@ -110,44 +110,34 @@ def upsample_minority(x, y):
     not_true = X[X.Revenue == 0]
     true = X[X.Revenue == 1]
 
-    # upsample minority
-    true_upsampled = resample(true,
-                              replace=True,  # sample with replacement
-                              n_samples=len(not_true),  # match number in majority class
-                              random_state=43)  # reproducible results
-
     # combine majority and upsampled minority
-    upsampled = pd.concat([not_true, true_upsampled])
+    reshape = pd.concat([not_true, true])
 
-    # check new class counts
-    upsampled.Revenue.value_counts()
-
-    y = upsampled.Revenue
-    x = upsampled.drop('Revenue', axis=1)
+    y = reshape.Revenue
+    x = reshape.drop('Revenue', axis=1)
 
     return x, y
 
 
-def src_category(x_train, y_train, k):
+def src_classifier(x_train, y_train):
 
-    # classifier = KNeighborsClassifier(n_neighbors=1, metric='cosine')
-    k_min = int(k)-5
-    k_max = int(k)+5
+    # k_min = int(k)-5
+    # k_max = int(k)+5
 
-    # param_grid = [{
-    #     'weights': ["uniform", "distance"],
-    #     'n_neighbors': range(k_min,k_max),
-    #     # 'n_neighbors': [1, 6, 7, 8, 9, 10, 15, 16],
-    #     'metric': ['euclidean', 'manhattan', 'cosine']}]
+    param_grid = [{
+        'weights': ["uniform", "distance"],
+        # 'n_neighbors': range(k_min,k_max),
+        'n_neighbors': [1, 6, 7, 8, 9, 10],
+        'metric': ['euclidean', 'manhattan', 'cosine']}]
 
-    # classifier = KNeighborsClassifier()
-    # grid_search = GridSearchCV(classifier, param_grid, cv=5, verbose=0, scoring='f1')
-    # grid_search.fit(x_train, y_train)
-
-    parameters = {'kernel': ('linear', 'rbf'), 'C': range(96, 97)}
-    svc = SVC()
-    grid_search = GridSearchCV(svc, parameters, cv=5, verbose=0, scoring='f1')
+    classifier = KNeighborsClassifier()
+    grid_search = GridSearchCV(classifier, param_grid, cv=5, verbose=0, scoring='f1')
     grid_search.fit(x_train, y_train)
+
+    # parameters = {'kernel': ('linear', 'rbf'), 'C': (1,2,3)}
+    # svc = SVC()
+    # grid_search = GridSearchCV(svc, parameters, cv=5, verbose=0)
+    # grid_search.fit(x_train, y_train)
 
     classifier = grid_search.best_estimator_
     print(classifier)
@@ -208,23 +198,24 @@ if __name__ == "__main__":
     x, y, class_names, feature_names = preprocess_df(data_frame_os)
     x_train, x_test, y_train, y_test = train_test(x, y, test_size=0.25)
 
-    data_frame_os_cat = data_frame_os.copy()
-    data_frame_os_cat = convert_num_to_cat(data_frame_os_cat)
-
-    x_cat, y_cat = preprocess_df_cat(data_frame_os_cat)
+    # data_frame_os_cat = data_frame_os.copy()
+    # data_frame_os_cat = convert_num_to_cat(data_frame_os_cat)
+    # x_cat, y_cat = preprocess_df_cat(data_frame_os_cat)
 
     # x_train, x_test, y_train, y_test = train_test(x_cat, y_cat, test_size=0.25)
-    # x_train, y_train = upsample_minority(x_train, y_train)
+    # # x_train, y_train = upsample_minority(x_train, y_train)
+    # x_train, y_train = reshape(x_train, y_train)
+    # x_test, y_test = reshape(x_test, y_test)
 
     # k = (math.sqrt(y_train.count()))
-    k = (math.sqrt(len(y_train)))
+    # k = (math.sqrt(len(y_train)))
 
-    classifier = src_category(x_train, y_train, k)
+    classifier = src_classifier(x_train, y_train)
 
-    # print("Accuracy Report for Training")
-    # y_pred_train = prediction(classifier, x_train)
-    # accuracy_cm_report(y_train, y_pred_train, class_names=class_names)
-    #
-    # print("Accuracy Report for Testing")
-    # y_pred_test = prediction(classifier, x_test)
-    # accuracy_cm_report(y_test, y_pred_test, class_names=class_names)
+    print("Accuracy Report for Training")
+    y_pred_train = prediction(classifier, x_train)
+    accuracy_cm_report(y_train, y_pred_train, class_names=class_names)
+
+    print("Accuracy Report for Testing")
+    y_pred_test = prediction(classifier, x_test)
+    accuracy_cm_report(y_test, y_pred_test, class_names=class_names)
