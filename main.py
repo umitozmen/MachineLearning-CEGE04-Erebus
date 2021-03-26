@@ -11,6 +11,9 @@ from sklearn import model_selection
 from sklearn.compose import ColumnTransformer
 import seaborn as sns
 from statsmodels.stats.outliers_influence import variance_inflation_factor
+from scipy import stats
+import warnings
+from dython.nominal import associations
 
 # Modules needed for Machine Learning
 import sklearn
@@ -93,6 +96,25 @@ def convert_num_to_cat(df):
     # duplicate bins (of 0s) due to too many occurences
     df['BounceRates'] = pd.qcut(df['BounceRates'], 5, duplicates='drop', labels=[0, 1, 2])
 
+def box_cox_transform(df):
+    numerical_features = df[['ProductRelated_Duration', 'ProductRelatedAve', 'BounceRates', 'ExitRates']]
+    features = numerical_features.columns.tolist()
+    plot = []
+
+    for var in features:
+        # Box-Cox Transformation
+        var_boxcox = stats.boxcox(numerical_features[var] + 0.0001)[0]  # As data must be positive
+        plot.append(var_boxcox)
+
+    plot_df = pd.DataFrame(plot, index=features)
+    plot_df = plot_df.T
+    categorical_df = df[['SpecialDay', 'Month', 'Region', 'VisitorType', 'Weekend']]
+    categorical_df = categorical_df.reset_index(drop=True)
+    rev = df['Revenue']
+    rev = rev.reset_index(drop=True)
+    horizontal_stack = pd.concat([plot_df, categorical_df], axis=1)
+    horizontal_stack = pd.concat([horizontal_stack, rev], axis=1)
+    return horizontal_stack
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
