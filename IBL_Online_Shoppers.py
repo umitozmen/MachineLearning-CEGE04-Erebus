@@ -1,4 +1,3 @@
-from Load_Dataset import readDatabaseFile
 import numpy as np
 import pandas as pd
 import sklearn
@@ -10,7 +9,20 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.utils import resample
 import math
+from imblearn.over_sampling import SMOTE
 from sklearn.svm import SVC
+
+
+def readDatabaseFile(filePath):
+    # read csv data
+    with open(filePath) as f:
+        # load reads the csv db as a dictionary with
+        # the data as a list of lists at key "data"
+        dataFrame = pd.read_csv(f)
+        f.close()
+
+    return dataFrame
+
 
 def read_data_return_frame(filename):
     df = readDatabaseFile(filename)
@@ -102,6 +114,41 @@ def upsample_minority(x, y):
     return x, y
 
 
+def downsample_majority(x, y):
+    # concatenate our training data back together
+    X = pd.concat([x, y], axis=1)
+
+    # separate minority and majority classes
+    not_true = X[X.Revenue == 0]
+    true = X[X.Revenue == 1]
+
+    # downsample minority
+    not_true_downsampled = resample(not_true,
+                                    replace=False,  # sample without replacement
+                                    n_samples=len(true),  # match minority n
+                                    random_state=42)  # reproducible results
+
+    # combine majority and upsampled minority
+    downsampled = pd.concat([not_true_downsampled, true])
+
+    # check new class counts
+    downsampled.Revenue.value_counts()
+
+    y = downsampled.Revenue
+    x = downsampled.drop('Revenue', axis=1)
+
+    return x, y
+
+
+def smote(x, y):
+
+    sm = SMOTE(random_state=42)
+    x_train, y_train = sm.fit_resample(x, y)
+    # x_test, y_test = sm.fit_resample(x_test, y_test)
+    print(y_train)
+    # return x_train, y_train
+
+
 def reshape(x, y):
     # concatenate our training data back together
     X = pd.concat([x, y], axis=1)
@@ -119,29 +166,46 @@ def reshape(x, y):
     return x, y
 
 
-def src_classifier(x_train, y_train):
-
+def src_classifier_knn(x_train, y_train):
+    # classifier = KNeighborsClassifier(n_neighbors=1, metric='cosine', weights='uniform')
     # k_min = int(k)-5
     # k_max = int(k)+5
 
     param_grid = [{
         'weights': ["uniform", "distance"],
         # 'n_neighbors': range(k_min,k_max),
-        'n_neighbors': [1, 6, 7, 8, 9, 10],
-        'metric': ['euclidean', 'manhattan', 'cosine']}]
+        'n_neighbors': [1, 3, 5],
+        'metric': ['euclidean', 'manhattan', 'cosine', 'minkowski', 'hamming']}]
 
     classifier = KNeighborsClassifier()
     grid_search = GridSearchCV(classifier, param_grid, cv=5, verbose=0, scoring='f1')
     grid_search.fit(x_train, y_train)
 
-    # parameters = {'kernel': ('linear', 'rbf'), 'C': (1,2,3)}
+    # parameters = {'kernel': ('linear', 'rbf', 'sigmoid'), 'gamma': ('scale', 'auto'), 'C': (7,8,13)}
     # svc = SVC()
-    # grid_search = GridSearchCV(svc, parameters, cv=5, verbose=0)
+    # grid_search = GridSearchCV(svc, parameters, cv=5, verbose=0, scoring='f1')
     # grid_search.fit(x_train, y_train)
 
     classifier = grid_search.best_estimator_
     print(classifier)
     print(grid_search.best_params_)
+
+    classifier.fit(x_train, y_train)
+    return classifier
+
+
+def src_classifier_svm(x_train, y_train):
+    parameters = {'kernel': ('linear', 'rbf'), 'C': (15, 17, 19)}
+    svc = SVC()
+    grid_search = GridSearchCV(svc, parameters, cv=5, verbose=0)
+    grid_search.fit(x_train, y_train)
+
+    classifier = grid_search.best_estimator_
+    print(classifier)
+    print(grid_search.best_params_)
+
+    # classifier = SVC(kernel='sigmoid', gamma='scale', C=8)
+    # print(classifier)
 
     classifier.fit(x_train, y_train)
     return classifier
@@ -167,6 +231,9 @@ def accuracy_cm_report(y, y_pred, class_names=[], dom='Train', brk=True):
 
 
 def plot_confusionmatrix(y_pred, y, classes, dom):
+    f1score = sklearn.metrics.f1_score(y, y_pred)
+    print("F1 Score: {:.2f}".format(f1score))
+
     print(f'{dom} Confusion matrix')
     cf = sklearn.metrics.confusion_matrix(y_pred, y)
     sns.heatmap(cf, annot=True, yticklabels=classes, xticklabels=classes, cmap='Blues', fmt='g')
@@ -198,24 +265,32 @@ if __name__ == "__main__":
     x, y, class_names, feature_names = preprocess_df(data_frame_os)
     x_train, x_test, y_train, y_test = train_test(x, y, test_size=0.25)
 
-    # data_frame_os_cat = data_frame_os.copy()
-    # data_frame_os_cat = convert_num_to_cat(data_frame_os_cat)
-    # x_cat, y_cat = preprocess_df_cat(data_frame_os_cat)
+    data_frame_os_cat = data_frame_os.copy()
+    data_frame_os_cat = convert_num_to_cat(data_frame_os_cat)
+    x_cat, y_cat = preprocess_df_cat(data_frame_os_cat)
+    x_train, x_test, y_train, y_test = train_test(x_cat, y_cat, test_size=0.25)
 
-    # x_train, x_test, y_train, y_test = train_test(x_cat, y_cat, test_size=0.25)
-    # # x_train, y_train = upsample_minority(x_train, y_train)
+    x_train, y_train = upsample_minority(x_train, y_train)
+    # x_test, y_test = upsample_minority(x_test, y_test)
+
+    # x_train, y_train = downsample_majority(x_train, y_train)
+    # x_test, y_test = downsample_majority(x_test, y_test)
+
+    # x_train, y_train = smote(x_train, y_train)
+
     # x_train, y_train = reshape(x_train, y_train)
     # x_test, y_test = reshape(x_test, y_test)
 
     # k = (math.sqrt(y_train.count()))
     # k = (math.sqrt(len(y_train)))
 
-    classifier = src_classifier(x_train, y_train)
+    classifier = src_classifier_svm(x_train, y_train)
 
     print("Accuracy Report for Training")
     y_pred_train = prediction(classifier, x_train)
     accuracy_cm_report(y_train, y_pred_train, class_names=class_names)
 
-    print("Accuracy Report for Testing")
-    y_pred_test = prediction(classifier, x_test)
-    accuracy_cm_report(y_test, y_pred_test, class_names=class_names)
+    # print("\n")
+    # print("Accuracy Report for Testing")
+    # y_pred_test = prediction(classifier, x_test)
+    # accuracy_cm_report(y_test, y_pred_test, class_names=class_names)
