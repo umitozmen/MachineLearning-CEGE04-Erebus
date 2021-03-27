@@ -150,6 +150,7 @@ def smote(x, y):
 
 
 def reshape(x, y):
+
     # concatenate our training data back together
     X = pd.concat([x, y], axis=1)
 
@@ -195,7 +196,8 @@ def src_classifier_knn(x_train, y_train):
 
 
 def src_classifier_svm(x_train, y_train):
-    parameters = {'kernel': ('linear', 'rbf'), 'C': (15, 17, 19)}
+    # parameters = {'kernel': ('linear', 'rbf'), 'C': (15, 17, 19)}
+    parameters = {'kernel': ('linear', 'rbf', 'sigmoid'), 'gamma': ('scale', 'auto'), 'C': (7, 8, 13)}
     svc = SVC()
     grid_search = GridSearchCV(svc, parameters, cv=5, verbose=0)
     grid_search.fit(x_train, y_train)
@@ -290,7 +292,7 @@ if __name__ == "__main__":
     y_pred_train = prediction(classifier, x_train)
     accuracy_cm_report(y_train, y_pred_train, class_names=class_names)
 
-    # print("\n")
-    # print("Accuracy Report for Testing")
-    # y_pred_test = prediction(classifier, x_test)
-    # accuracy_cm_report(y_test, y_pred_test, class_names=class_names)
+    print("\n")
+    print("Accuracy Report for Testing")
+    y_pred_test = prediction(classifier, x_test)
+    accuracy_cm_report(y_test, y_pred_test, class_names=class_names)
